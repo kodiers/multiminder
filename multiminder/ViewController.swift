@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import UserNotifications
 
 class ViewController: UITableViewController {
     
@@ -19,7 +20,17 @@ class ViewController: UITableViewController {
         
         title = "Multiminder"
         load()
+        navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Schedule", style: .plain, target: self, action: #selector(scheduleNotifications))
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addNewGroup))
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        UNUserNotificationCenter.current().requestAuthorization(options: .alert) { (granted, error) in
+            if granted == false {
+                print("we need permissions!")
+            }
+        }
     }
     
     func load() {
@@ -93,7 +104,47 @@ class ViewController: UITableViewController {
         ac.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         present(ac, animated: true, completion: nil)
     }
-
+    
+    func update(_ group: ReminderGroup) {
+        // we must always have a selected index
+        guard let selectedIndex = selectedIndex else {
+            fatalError("Attempted to update group without selection.")
+        }
+        // update our groups array with changed reminder group
+        groups[selectedIndex] = group
+        // refresh tableView row for that group
+        let indexPath = IndexPath(row: selectedIndex, section: 0)
+        tableView.reloadRows(at: [indexPath], with: .none)
+        // write new reminders to UserDefaults
+        save()
+    }
+    
+    @objc func scheduleNotifications() {
+        // remove all existing notifications from this app
+        let center = UNUserNotificationCenter.current()
+        center.removeAllDeliveredNotifications()
+        center.removeAllPendingNotificationRequests()
+        
+        for group in groups {
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+            for reminder in group.items {
+                guard !reminder.isComplete else { continue }
+                let content = UNMutableNotificationContent()
+                content.title = reminder.title
+                // tell iOS to group notifications based on notification group name
+                content.threadIdentifier = group.name
+                content.summaryArgument = "\(group.name)"
+                // wrap the content and trigger up in request, giving it random identifier
+                let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+                // send request off to the notification system, printing out any errors that occur
+                center.add(request) { (error) in
+                    if let error = error {
+                        print(error.localizedDescription)
+                    }
+                }
+            }
+        }
+    }
 
 }
 

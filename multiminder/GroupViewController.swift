@@ -17,6 +17,8 @@ class GroupViewController: UITableViewController {
         super.viewDidLoad()
 
         // Do any additional setup after loading the view.
+        title = group.name
+        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addNewReminder))
     }
     
 
@@ -45,6 +47,27 @@ class GroupViewController: UITableViewController {
             cell.textLabel?.text = reminder.title
         }
         return cell
+    }
+    
+    func addReminder(named name: String) {
+        // create new reminder
+        let reminder = Reminder(title: name, isComplete: false)
+        group.items.append(reminder)
+        // add reminder to our table
+        tableView.insertRows(at: [IndexPath(row: group.items.count - 1, section: 0)], with: .automatic)
+        // make sure we update main view controller
+        delegate?.update(group)
+    }
+    
+    @objc func addNewReminder() {
+        let ac = UIAlertController(title: "New Reminder", message: nil, preferredStyle: .alert)
+        ac.addTextField(configurationHandler: nil)
+        ac.addAction(UIAlertAction(title: "Add", style: .default, handler: { (action) in
+            guard let text = ac.textFields?[0].text else { return }
+            self.addReminder(named: text)
+        }))
+        ac.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+        present(ac, animated: true, completion: nil)
     }
 
 }
